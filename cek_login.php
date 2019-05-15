@@ -6,8 +6,8 @@ session_start();
 include 'koneksi.php';
  
 // menangkap data yang dikirim dari form
-// $username = $_POST['username'];
-// $password = $_POST['password'];
+$username = $_POST['username'];
+$password = $_POST['password'];
  
 // // menyeleksi data admin dengan username dan password yang sesuai
 // $data = mysqli_query($koneksi,"select * from user where username='$username' and password='$password'");
@@ -23,53 +23,76 @@ include 'koneksi.php';
 // 	header("location:login.php?pesan=gagal");
 // }
 
-function antiinjection($data){
-    $filter_sql = mysqli_real_escape_string(stripslashes(strip_tags(htmlspecialchars($data, ENT_QUOTES))));
-    return $filter_sql;
-}
+ // proses login
+
+   $query = "SELECT id from user WHERE username='$username' and password='$password' and bloki='N'";
+   $result = $this->link->query($query) or die($this->link->error);
+   $user_data = $result->fetch_array(MYSQLI_ASSOC);
+   $count_row = $result->num_rows;
+   $query2 = "SELECT blokir from user where username= '$username'";
+   $result2 = $this->link->query($query2) or die($this->link->error);
+   $user_data2 = $result2->fetch_array(MYSQLI_ASSOC);
+   $ban = $user_data2['blokir'];
+   if ($count_row == 1) {
+     //mengembalikan logintime ke 0 jika berhasil login
+     $qry = "UPDATE user SET batas_login = 0 where username='$username'";
+     $reset = $this->link->query($qry) or die($this->link->error);
+     //session untul digunakan di halaman lain sebagai tanda kalau sudah login apa belum
+     $_SESSION['login'] = true;
+     $_SESSION['id'] = $user_data['id'];
+     return true;
+   } else if ('Y' === $ban) {
+     echo "<script type=text/javascript>
+       alert('Username $username Telah Di Blokir, Silahkan Hubungi Administrator');
+       window.location = 'index.php'
+       </script>";
+     return false;
+   } else {
+     $query = "UPDATE user SET batas_login = batas_login + 1 where username='$username'";
+     $result = $this->link->query($query) or die($this->link->error);
+     $query2 = "SELECT batas_login from user where username= '$username'";
+     $result2 = $this->link->query($query2) or die($this->link->error);
+     $user_data = $result2->fetch_array(MYSQLI_ASSOC);
+     $time = $user_data['batas_login'];
+     if ($time > 3) {
+       $query = "UPDATE user SET banned = 'Y' where username='$username'";
+       $result = $this->link->query($query) or die($this->link->error);
+       echo "<script type=text/javascript>
+         alert('Username $username Telah Di Blokir, Silahkan Hubungi Administrator');
+         window.location = 'index.php'
+         </script>";
+     } else {
+       echo "<script type=text/javascript>
+                 alert('Username Atau Password Tidak Benar Anda, Sudah $time Kali Mencoba');
+                 window.location.href='index.php'
+                 </script>";
+     }
+     return false;
+   }
 
 
-$username = antiinjection($_POST['username']);
-$password = antiinjection(md5($_POST['password']));
+ //------------------------mengambil nama lengkap------------------
+//  public function get_fullname($uid)
+//  {
+//    $query = "SELECT fullname FROM user_data WHERE id = $uid";
 
-if (!ctype_alnum($username) OR !ctype_alnum($password)) {
+//    $result = $this->link->query($query) or die($this->link->error);
+//    $user_data = $result->fetch_array(MYSQLI_ASSOC);
+//    echo $user_data['fullname'];
+//  }
 
-    echo "<script type=text/javascript>
-        alert('Hacker Gagall Mencoba Login');
+ // memulai session
+//  public function get_session()
+//  {
+//    return $_SESSION['login'];
+//  }
 
-        window.location = '#' //yang ini pengalihan ketika user salah
-
-        </script>";
-    //header('location:./');
-
-
-} else {
-    $login  = mysql_query("SELECT * FROM user WHERE username='$username' AND password='$password'");
-    $ketemu = mysql_num_rows($login);
-	$r      = mysql_fetch_array($login);
-	
-    // Apabila username dan password ditemukann
-    if ($ketemu > 0) {
-        mysql_query("UPDATE user SET batas_login = 0 where username='$username'");
-        header('location:admin.php?module=home');
-    } else {
-        mysql_query("UPDATE user SET batas_login = batas_login + 1 where username='$username'");
-        $a = mysql_fetch_array(mysql_query("SELECT batas_login from user where username = '$username'"));
-        $b = $a['batas_login'];
-        if ($b > 2) {
-            mysql_query("UPDATE admin SET blokir = 'Y' where username='$username'");
-            echo "<script type=text/javascript>
-              alert('Username $username Telah Di Blokir, Silahkan Hubungi Administrator');
-              window.location = './'
-              </script>";
-        } else {
-            echo "<script type=text/javascript>
-              alert('Username Atau Password Tidak Benar, Anda Sudah $b Kali Mencoba');
-              window.location.href='./'
-              </script>";
-        }
-    }
-}
-
-?>
+ // fungsi logout
+//  public function user_logout()
+//  {
+//    $_SESSION['login'] = FALSE;
+//    unset($_SESSION);
+//    session_destroy();
+//  }
+// }
 ?>
